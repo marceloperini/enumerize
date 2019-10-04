@@ -56,6 +56,11 @@ ActiveRecord::Base.connection.instance_eval do
     t.integer :status
     t.timestamps null: true
   end
+
+  create_table :dependents do |t|
+    t.integer :user_id
+    t.string :name
+  end
 end
 
 class BaseEntity < ActiveRecord::Base
@@ -75,6 +80,10 @@ module RoleEnum
   extend Enumerize
   enumerize :role, :in => [:user, :admin], :default => :user, scope: :having_role
   enumerize :lambda_role, :in => [:user, :admin], :default => lambda { :admin }
+end
+
+class Dependent < ActiveRecord::Base
+  belongs_to :user
 end
 
 class User < ActiveRecord::Base
@@ -615,5 +624,11 @@ describe Enumerize::ActiveRecordSupport do
     sql = User.where(table[:account_type].matches '%foo%').to_sql
 
     sql.must_include 'LIKE \'%foo%\''
+  end
+
+  it 'generates correct sql when use nested joins' do
+    sql = Dependent.joins(user: :documents).where(documents: { status: [:draft, :release] }).to_sql
+
+    sql.must_include "\"documents\".\"status\" IN (1, 2)"
   end
 end
